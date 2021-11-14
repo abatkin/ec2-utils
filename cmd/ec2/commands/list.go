@@ -26,9 +26,10 @@ func buildEc2ListCommand(awsOptions *util.AwsOptions) *cobra.Command {
 
 func listEc2(awsOptions *util.AwsOptions, listOptions *ListOptions) {
 	client := util.BuildAwsClient(awsOptions)
+	requestContext, _ := context.WithTimeout(context.Background(), awsOptions.Timeout)
 	instancesPaginator := ec2.NewDescribeInstancesPaginator(client, &ec2.DescribeInstancesInput{})
 	for instancesPaginator.HasMorePages() {
-		page, err := instancesPaginator.NextPage(context.Background())
+		page, err := instancesPaginator.NextPage(requestContext)
 		if err != nil {
 			log.Fatalf("error in pagination: %v", err)
 		}

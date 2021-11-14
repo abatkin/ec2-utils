@@ -7,7 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"log"
-	http2 "net/http"
+	netHttp "net/http"
 	"net/url"
 	"time"
 )
@@ -54,25 +54,25 @@ func BuildAwsClient(awsOptions *AwsOptions) *ec2.Client {
 }
 
 func setupProxy(proxy string, httpClient *http.BuildableClient) (*http.BuildableClient, error) {
-	var proxyFunc func(*http2.Request) (*url.URL, error)
+	var proxyFunc func(*netHttp.Request) (*url.URL, error)
 	if proxy == "none" {
 		proxyFunc = forceNoProxy()
 	} else {
 		if proxyUrl, err := url.Parse(proxy); err != nil {
 			return nil, fmt.Errorf("bad proxy url %s: %v", proxy, err)
 		} else {
-			proxyFunc = http2.ProxyURL(proxyUrl)
+			proxyFunc = netHttp.ProxyURL(proxyUrl)
 		}
 	}
 
-	httpClient = httpClient.WithTransportOptions(func(transport *http2.Transport) {
+	httpClient = httpClient.WithTransportOptions(func(transport *netHttp.Transport) {
 		transport.Proxy = proxyFunc
 	})
 	return httpClient, nil
 }
 
-func forceNoProxy() func(request *http2.Request) (*url.URL, error) {
-	return func(request *http2.Request) (*url.URL, error) {
+func forceNoProxy() func(request *netHttp.Request) (*url.URL, error) {
+	return func(request *netHttp.Request) (*url.URL, error) {
 		return nil, nil
 	}
 }
