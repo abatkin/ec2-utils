@@ -29,16 +29,18 @@ func BuildAwsClient(awsOptions *AwsOptions) *ec2.Client {
 		}
 		httpClient := http.NewBuildableClient()
 		if awsOptions.Timeout > 0 {
-			httpClient = httpClient.WithTimeout(time.Second * awsOptions.Timeout)
+			httpClient = httpClient.WithTimeout(awsOptions.Timeout)
 		}
 		if awsOptions.Proxy != "" {
 			if awsOptions.Proxy == "none" {
+				log.Printf("Disabling proxy")
 				httpClient = httpClient.WithTransportOptions(func(transport *http2.Transport) {
 					transport.Proxy = func(request *http2.Request) (*url.URL, error) {
 						return nil, nil
 					}
 				})
 			} else {
+				log.Printf("Setting proxy to %s", awsOptions.Proxy)
 				proxyUrl, err := url.Parse(awsOptions.Proxy)
 				if err != nil {
 					return fmt.Errorf("bad proxy url %s: %v", awsOptions.Proxy, err)
