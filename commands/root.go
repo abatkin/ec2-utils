@@ -5,8 +5,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-
-
 func BuildRootCommand() *cobra.Command {
 
 	rootCmd := &cobra.Command{
@@ -21,5 +19,3 @@ func BuildRootCommand() *cobra.Command {
 
 	return rootCmd
 }
-
-

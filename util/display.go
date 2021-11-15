@@ -23,7 +23,7 @@ func BuildDisplayOptions(rootCmd *cobra.Command) *DisplayOptions {
 
 type Field struct {
 	FieldName string
-	Heading string
+	Heading   string
 }
 
 type Item interface {

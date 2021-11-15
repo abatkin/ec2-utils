@@ -13,4 +13,3 @@ func main() {
 		log.Fatalf("error running ec2: %v", err)
 	}
 }
-
