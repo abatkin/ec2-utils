@@ -16,7 +16,7 @@ type ListOptions struct {
 	filterOptions map[string]string
 }
 
-func buildEc2ListCommand(awsOptions *aws2.AwsOptions, displayOptions *util2.DisplayOptions) *cobra.Command {
+func buildEc2ListCommand(awsOptions *aws2.Options, displayOptions *util2.Options) *cobra.Command {
 	listOptions := &ListOptions{}
 
 	return &cobra.Command{
@@ -46,7 +46,7 @@ func (e *Ec2Item) GetValue(name string) string {
 	}
 }
 
-func listEc2(awsOptions *aws2.AwsOptions, listOptions *ListOptions, displayOptions *util2.DisplayOptions) {
+func listEc2(awsOptions *aws2.Options, listOptions *ListOptions, displayOptions *util2.Options) {
 	client := awsOptions.BuildAwsClient()
 	requestContext := awsOptions.BuildRequestContext()
 
@@ -85,7 +85,7 @@ var DefaultFields = []util2.Field{
 	{FieldName: "state", Heading: "State"},
 }
 
-func getFields(displayOptions *util2.DisplayOptions) []util2.Field {
+func getFields(displayOptions *util2.Options) []util2.Field {
 	if len(displayOptions.Fields) == 0 {
 		return DefaultFields
 	}

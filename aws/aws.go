@@ -13,15 +13,15 @@ import (
 	"time"
 )
 
-type AwsOptions struct {
+type Options struct {
 	Profile string
 	Region  string
 	Timeout time.Duration
 	Proxy   string
 }
 
-func BuildAwsOptions(rootCmd *cobra.Command) *AwsOptions {
-	awsOptions := &AwsOptions{}
+func BuildAwsOptions(rootCmd *cobra.Command) *Options {
+	awsOptions := &Options{}
 	rootCmd.PersistentFlags().StringVar(&awsOptions.Profile, "profile", "", "AWS Profile")
 	rootCmd.PersistentFlags().StringVar(&awsOptions.Region, "region", "", "AWS Region")
 	rootCmd.PersistentFlags().DurationVar(&awsOptions.Timeout, "timeout", 0, "Timeout")
@@ -29,7 +29,7 @@ func BuildAwsOptions(rootCmd *cobra.Command) *AwsOptions {
 	return awsOptions
 }
 
-func (awsOptions *AwsOptions) BuildAwsClient() *ec2.Client {
+func (awsOptions *Options) BuildAwsClient() *ec2.Client {
 	cfg, err := config.LoadDefaultConfig(context.Background(), func(options *config.LoadOptions) error {
 		var err error
 
@@ -87,7 +87,7 @@ func forceNoProxy() func(request *netHttp.Request) (*url.URL, error) {
 	}
 }
 
-func (awsOptions *AwsOptions) BuildRequestContext() context.Context {
+func (awsOptions *Options) BuildRequestContext() context.Context {
 	var requestContext = context.Background()
 	if awsOptions.Timeout > 0 {
 		requestContext, _ = context.WithTimeout(context.Background(), awsOptions.Timeout)

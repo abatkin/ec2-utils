@@ -7,13 +7,13 @@ import (
 )
 import "github.com/jedib0t/go-pretty/v6/table"
 
-type DisplayOptions struct {
+type Options struct {
 	OutputFormat string
 	Fields       []string
 }
 
-func BuildDisplayOptions(rootCmd *cobra.Command) *DisplayOptions {
-	displayOptions := &DisplayOptions{}
+func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
+	displayOptions := &Options{}
 
 	rootCmd.PersistentFlags().StringVar(&displayOptions.OutputFormat, "output", "table", "Output format")
 	rootCmd.PersistentFlags().StringSliceVar(&displayOptions.Fields, "field", []string{}, "List of fields")
@@ -30,7 +30,7 @@ type Item interface {
 	GetValue(name string) string
 }
 
-func (*DisplayOptions) Render(fields []Field, items []Item) {
+func (*Options) Render(fields []Field, items []Item) {
 	t := table.NewWriter()
 	t.Style().Format.Header = text.FormatDefault
 	t.SetOutputMirror(os.Stdout)
