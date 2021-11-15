@@ -1,7 +1,7 @@
 package main
 
 import (
-	"ec2-utils/cmd/ec2/commands"
+	"ec2-utils/commands"
 	"log"
 )
 

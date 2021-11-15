@@ -1,7 +1,7 @@
 package commands
 
 import (
-	"ec2-utils/cmd/ec2/util"
+	util2 "ec2-utils/util"
 	"github.com/spf13/cobra"
 )
 
@@ -14,8 +14,8 @@ func BuildRootCommand() *cobra.Command {
 		Short: "EC2 utilities",
 	}
 
-	awsOptions := util.BuildAwsOptions(rootCmd)
-	displayOptions := util.BuildDisplayOptions(rootCmd)
+	awsOptions := util2.BuildAwsOptions(rootCmd)
+	displayOptions := util2.BuildDisplayOptions(rootCmd)
 
 	rootCmd.AddCommand(buildEc2ListCommand(awsOptions, displayOptions))
 
