@@ -16,22 +16,38 @@ type Options struct {
 	filterOptions map[string]string
 }
 
-func buildEc2ListCommand(awsOptions *utilAws.Options, displayOptions *utilDisplay.Options) *cobra.Command {
+func buildEc2ListCommand() ec2Command {
 	listOptions := &Options{}
 
-	return &cobra.Command{
-		Use: "list [--filter name=value ... | --instance-id id ...]",
-		Short: "List EC2 Instances",
-		DisableFlagsInUseLine: true,
-		Run: func(cmd *cobra.Command, args []string) {
-			listEc2(awsOptions, listOptions, displayOptions)
+	return ec2Command{
+		optionSetup: func(command *cobra.Command) {
+			// TODO: add cli options using listOptions
 		},
+		usage:             "list [--filter name=value ... | --instance-id id ...]",
+		description:       "List EC2 Instances",
+		command: func(awsOptions *utilAws.Options) ([]utilDisplay.Item, error) {
+			return listEc2(awsOptions, listOptions)
+		},
+		defaultFieldNames: []string{"id", "tags.Name", "state"},
+		header:            buildHeading,
 	}
 }
 
 type Ec2Item struct {
 	types.Instance
 	tags map[string]string
+}
+
+func newEc2Item(instance types.Instance) utilDisplay.Item {
+	var tags = map[string]string{}
+	for _, tag := range instance.Tags {
+		tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
+	}
+
+	return &Ec2Item{
+		Instance: instance,
+		tags:     tags,
+	}
 }
 
 func (e *Ec2Item) GetValue(name string) string {
@@ -47,7 +63,7 @@ func (e *Ec2Item) GetValue(name string) string {
 	}
 }
 
-func listEc2(awsOptions *utilAws.Options, listOptions *Options, displayOptions *utilDisplay.Options) {
+func listEc2(awsOptions *utilAws.Options, listOptions *Options) ([]utilDisplay.Item, error) {
 	client := awsOptions.BuildAwsClient()
 	requestContext := awsOptions.BuildRequestContext()
 
@@ -64,38 +80,7 @@ func listEc2(awsOptions *utilAws.Options, listOptions *Options, displayOptions *
 			}
 		}
 	}
-
-	displayOptions.Render(getFields(displayOptions), items)
-}
-
-func newEc2Item(instance types.Instance) utilDisplay.Item {
-	var tags = map[string]string{}
-	for _, tag := range instance.Tags {
-		tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
-	}
-
-	return &Ec2Item{
-		Instance: instance,
-		tags:     tags,
-	}
-}
-
-var DefaultFields = []utilDisplay.Field{
-	{FieldName: "id", Heading: "InstanceId"},
-	{FieldName: "tags.Name", Heading: "Name"},
-	{FieldName: "state", Heading: "State"},
-}
-
-func getFields(displayOptions *utilDisplay.Options) []utilDisplay.Field {
-	if len(displayOptions.Fields) == 0 {
-		return DefaultFields
-	}
-
-	fields := make([]utilDisplay.Field, len(displayOptions.Fields))
-	for i, fieldName := range displayOptions.Fields {
-		fields[i] = utilDisplay.Field{FieldName: fieldName, Heading: buildHeading(fieldName)}
-	}
-	return fields
+	return items, nil
 }
 
 func buildHeading(name string) string {

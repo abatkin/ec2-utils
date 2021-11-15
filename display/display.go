@@ -12,6 +12,12 @@ type Options struct {
 	Fields       []string
 }
 
+type Item interface {
+	GetValue(name string) string
+}
+
+type HeaderFunction func(field string) string
+
 func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 	displayOptions := &Options{}
 
@@ -21,29 +27,20 @@ func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 	return displayOptions
 }
 
-type Field struct {
-	FieldName string
-	Heading   string
-}
-
-type Item interface {
-	GetValue(name string) string
-}
-
-func (*Options) Render(fields []Field, items []Item) {
+func (*Options) Render(fields []string, headerFunction HeaderFunction, items []Item) {
 	t := table.NewWriter()
 	t.Style().Format.Header = text.FormatDefault
 	t.SetOutputMirror(os.Stdout)
 	headerFields := make([]interface{}, len(fields))
 	for i, field := range fields {
-		headerFields[i] = field.Heading
+		headerFields[i] = headerFunction(field)
 	}
 	t.AppendHeader(headerFields)
 
 	for _, item := range items {
 		values := make([]interface{}, len(fields))
 		for i, field := range fields {
-			values[i] = item.GetValue(field.FieldName)
+			values[i] = item.GetValue(field)
 		}
 		t.AppendRow(values)
 	}

@@ -16,7 +16,7 @@ func BuildRootCommand() *cobra.Command {
 	awsOptions := aws.BuildAwsOptions(rootCmd)
 	displayOptions := util2.BuildDisplayOptions(rootCmd)
 
-	rootCmd.AddCommand(buildEc2ListCommand(awsOptions, displayOptions))
+	rootCmd.AddCommand(setupCommand(buildEc2ListCommand(), awsOptions, displayOptions))
 
 	return rootCmd
 }
