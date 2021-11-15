@@ -1,6 +1,7 @@
 package display
 
 import (
+	"fmt"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"github.com/spf13/cobra"
 	"os"
@@ -27,7 +28,25 @@ func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 	return displayOptions
 }
 
-func (*Options) Render(fields []string, headerFunction HeaderFunction, items []Item) {
+func (options *Options) Render(fields []string, headerFunction HeaderFunction, items []Item) {
+	if options.OutputFormat == "plain" {
+		plainOutput(fields, items)
+	} else {
+		tableOutput(fields, headerFunction, items)
+	}
+}
+
+func plainOutput(fields []string, items []Item) {
+	for _, item := range items {
+		for _, field := range fields {
+			value := item.GetValue(field)
+			fmt.Printf("%s ", value)
+		}
+		fmt.Println()
+	}
+}
+
+func tableOutput(fields []string, headerFunction HeaderFunction, items []Item) {
 	t := table.NewWriter()
 	t.Style().Format.Header = text.FormatDefault
 	t.SetOutputMirror(os.Stdout)
