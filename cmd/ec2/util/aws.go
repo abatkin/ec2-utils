@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/spf13/cobra"
 	"log"
 	netHttp "net/http"
 	"net/url"
@@ -19,7 +20,16 @@ type AwsOptions struct {
 	Proxy   string
 }
 
-func BuildAwsClient(awsOptions *AwsOptions) *ec2.Client {
+func BuildAwsOptions(rootCmd *cobra.Command) *AwsOptions {
+	awsOptions := &AwsOptions{}
+	rootCmd.PersistentFlags().StringVar(&awsOptions.Profile, "profile", "", "AWS Profile")
+	rootCmd.PersistentFlags().StringVar(&awsOptions.Region, "region", "", "AWS Region")
+	rootCmd.PersistentFlags().DurationVar(&awsOptions.Timeout, "timeout", 0, "Timeout")
+	rootCmd.PersistentFlags().StringVar(&awsOptions.Proxy, "proxy", "", "Proxy (set to 'none' to force-disable)")
+	return awsOptions
+}
+
+func (awsOptions *AwsOptions) BuildAwsClient() *ec2.Client {
 	cfg, err := config.LoadDefaultConfig(context.Background(), func(options *config.LoadOptions) error {
 		var err error
 
@@ -75,4 +85,12 @@ func forceNoProxy() func(request *netHttp.Request) (*url.URL, error) {
 	return func(request *netHttp.Request) (*url.URL, error) {
 		return nil, nil
 	}
+}
+
+func (awsOptions *AwsOptions) BuildRequestContext() context.Context {
+	var requestContext = context.Background()
+	if awsOptions.Timeout > 0 {
+		requestContext, _ = context.WithTimeout(context.Background(), awsOptions.Timeout)
+	}
+	return requestContext
 }
