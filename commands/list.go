@@ -3,6 +3,7 @@ package commands
 import (
 	utilAws "ec2-utils/aws"
 	utilDisplay "ec2-utils/display"
+	"errors"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -16,7 +17,8 @@ type ListEc2InstancesCommand struct {
 }
 
 func (c *ListEc2InstancesCommand) optionSetup(command *cobra.Command) {
-	// TODO implement this
+	command.Flags().StringSliceVar(&c.instanceIds, "instance-id", []string{}, "Instance `id`(s) to return")
+	command.Flags().StringToStringVar(&c.filterOptions, "filter", map[string]string{}, "`key=value` values for filter")
 }
 
 func (c *ListEc2InstancesCommand) usage() string {
@@ -30,8 +32,13 @@ func (c *ListEc2InstancesCommand) description() string {
 func (c *ListEc2InstancesCommand) runCommand(awsOptions *utilAws.Options) ([]utilDisplay.Item, error) {
 	client := awsOptions.BuildAwsClient()
 	requestContext := awsOptions.BuildRequestContext()
+	var filter *ec2.DescribeInstancesInput
+	var err error
+	if filter, err = c.buildFilter(); err != nil {
+		return nil, err
+	}
 
-	instancesPaginator := ec2.NewDescribeInstancesPaginator(client, &ec2.DescribeInstancesInput{})
+	instancesPaginator := ec2.NewDescribeInstancesPaginator(client, filter)
 	items := make([]utilDisplay.Item, 0)
 	for instancesPaginator.HasMorePages() {
 		page, err := instancesPaginator.NextPage(requestContext)
@@ -61,6 +68,32 @@ func (c *ListEc2InstancesCommand) headerName(fieldName string) string {
 	} else {
 		return fieldName
 	}
+}
+
+func (c *ListEc2InstancesCommand) buildFilter() (*ec2.DescribeInstancesInput, error) {
+	request := &ec2.DescribeInstancesInput{}
+
+	if len(c.instanceIds) > 0 {
+		if len(c.filterOptions) > 0 {
+			return nil, errors.New("only instance IDs OR fields maybe specified to filter")
+		}
+
+		request.InstanceIds = c.instanceIds
+	}  else if len(c.filterOptions) > 0 {
+		filters := make([]types.Filter, len(c.filterOptions))
+		i := 0
+		for key, value := range c.filterOptions {
+			filters[i] = types.Filter{
+				Name:   &key,
+				Values: strings.Split(value, ","),
+			}
+			i++
+		}
+
+		request.Filters = filters
+	}
+
+	return request, nil
 }
 
 func buildEc2ListCommand() Ec2Command {
