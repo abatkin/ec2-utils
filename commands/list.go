@@ -1,7 +1,8 @@
 package commands
 
 import (
-	util2 "ec2-utils/util"
+	aws2 "ec2-utils/aws"
+	util2 "ec2-utils/display"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -15,7 +16,7 @@ type ListOptions struct {
 	filterOptions map[string]string
 }
 
-func buildEc2ListCommand(awsOptions *util2.AwsOptions, displayOptions *util2.DisplayOptions) *cobra.Command {
+func buildEc2ListCommand(awsOptions *aws2.AwsOptions, displayOptions *util2.DisplayOptions) *cobra.Command {
 	listOptions := &ListOptions{}
 
 	return &cobra.Command{
@@ -45,7 +46,7 @@ func (e *Ec2Item) GetValue(name string) string {
 	}
 }
 
-func listEc2(awsOptions *util2.AwsOptions, listOptions *ListOptions, displayOptions *util2.DisplayOptions) {
+func listEc2(awsOptions *aws2.AwsOptions, listOptions *ListOptions, displayOptions *util2.DisplayOptions) {
 	client := awsOptions.BuildAwsClient()
 	requestContext := awsOptions.BuildRequestContext()
 

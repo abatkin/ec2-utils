@@ -1,4 +1,4 @@
-package util
+package display
 
 import (
 	"github.com/jedib0t/go-pretty/v6/text"
