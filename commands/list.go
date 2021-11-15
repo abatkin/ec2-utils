@@ -1,8 +1,8 @@
 package commands
 
 import (
-	aws2 "ec2-utils/aws"
-	util2 "ec2-utils/display"
+	utilAws "ec2-utils/aws"
+	utilDisplay "ec2-utils/display"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -11,16 +11,18 @@ import (
 	"strings"
 )
 
-type ListOptions struct {
+type Options struct {
 	instanceIds   []string
 	filterOptions map[string]string
 }
 
-func buildEc2ListCommand(awsOptions *aws2.Options, displayOptions *util2.Options) *cobra.Command {
-	listOptions := &ListOptions{}
+func buildEc2ListCommand(awsOptions *utilAws.Options, displayOptions *utilDisplay.Options) *cobra.Command {
+	listOptions := &Options{}
 
 	return &cobra.Command{
-		Use: "list ec2 instances",
+		Use: "list [--filter name=value ... | --instance-id id ...]",
+		Short: "List EC2 Instances",
+		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			listEc2(awsOptions, listOptions, displayOptions)
 		},
@@ -35,8 +37,7 @@ type Ec2Item struct {
 func (e *Ec2Item) GetValue(name string) string {
 	switch {
 	case strings.Index(name, "tags.") == 0:
-		tagName := name[5:]
-		return e.tags[tagName]
+		return e.tags[name[5:]]
 	case name == "id":
 		return aws.ToString(e.InstanceId)
 	case name == "state":
@@ -46,12 +47,12 @@ func (e *Ec2Item) GetValue(name string) string {
 	}
 }
 
-func listEc2(awsOptions *aws2.Options, listOptions *ListOptions, displayOptions *util2.Options) {
+func listEc2(awsOptions *utilAws.Options, listOptions *Options, displayOptions *utilDisplay.Options) {
 	client := awsOptions.BuildAwsClient()
 	requestContext := awsOptions.BuildRequestContext()
 
 	instancesPaginator := ec2.NewDescribeInstancesPaginator(client, &ec2.DescribeInstancesInput{})
-	items := make([]util2.Item, 0)
+	items := make([]utilDisplay.Item, 0)
 	for instancesPaginator.HasMorePages() {
 		page, err := instancesPaginator.NextPage(requestContext)
 		if err != nil {
@@ -67,7 +68,7 @@ func listEc2(awsOptions *aws2.Options, listOptions *ListOptions, displayOptions 
 	displayOptions.Render(getFields(displayOptions), items)
 }
 
-func newEc2Item(instance types.Instance) util2.Item {
+func newEc2Item(instance types.Instance) utilDisplay.Item {
 	var tags = map[string]string{}
 	for _, tag := range instance.Tags {
 		tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
@@ -79,20 +80,20 @@ func newEc2Item(instance types.Instance) util2.Item {
 	}
 }
 
-var DefaultFields = []util2.Field{
+var DefaultFields = []utilDisplay.Field{
 	{FieldName: "id", Heading: "InstanceId"},
 	{FieldName: "tags.Name", Heading: "Name"},
 	{FieldName: "state", Heading: "State"},
 }
 
-func getFields(displayOptions *util2.Options) []util2.Field {
+func getFields(displayOptions *utilDisplay.Options) []utilDisplay.Field {
 	if len(displayOptions.Fields) == 0 {
 		return DefaultFields
 	}
 
-	fields := make([]util2.Field, len(displayOptions.Fields))
+	fields := make([]utilDisplay.Field, len(displayOptions.Fields))
 	for i, fieldName := range displayOptions.Fields {
-		fields[i] = util2.Field{FieldName: fieldName, Heading: buildHeading(fieldName)}
+		fields[i] = utilDisplay.Field{FieldName: fieldName, Heading: buildHeading(fieldName)}
 	}
 	return fields
 }
