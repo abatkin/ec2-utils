@@ -29,10 +29,10 @@ func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 }
 
 func (options *Options) Render(fields []string, headerFunction HeaderFunction, items []Item) {
-	if options.OutputFormat == "plain" {
-		plainOutput(fields, items)
-	} else {
-		tableOutput(fields, headerFunction, items)
+	switch options.OutputFormat {
+	case "plain": plainOutput(fields, items)
+	case "simple": tableOutput(fields, headerFunction, items, "simple")
+	default: tableOutput(fields, headerFunction, items, "table")
 	}
 }
 
@@ -46,15 +46,24 @@ func plainOutput(fields []string, items []Item) {
 	}
 }
 
-func tableOutput(fields []string, headerFunction HeaderFunction, items []Item) {
+func tableOutput(fields []string, headerFunction HeaderFunction, items []Item, tableType string) {
 	t := table.NewWriter()
 	t.Style().Format.Header = text.FormatDefault
 	t.SetOutputMirror(os.Stdout)
-	headerFields := make([]interface{}, len(fields))
-	for i, field := range fields {
-		headerFields[i] = headerFunction(field)
+
+	if tableType == "table" {
+		headerFields := make([]interface{}, len(fields))
+		for i, field := range fields {
+			headerFields[i] = headerFunction(field)
+		}
+		t.AppendHeader(headerFields)
+	} else {
+		t.Style().Options.DrawBorder = false
+		t.Style().Options.SeparateColumns = false
+		t.Style().Options.SeparateFooter = false
+		t.Style().Options.SeparateHeader = false
+		t.Style().Options.SeparateRows = false
 	}
-	t.AppendHeader(headerFields)
 
 	for _, item := range items {
 		values := make([]interface{}, len(fields))
