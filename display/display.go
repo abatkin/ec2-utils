@@ -31,8 +31,9 @@ func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 func (options *Options) Render(fields []string, headerFunction HeaderFunction, items []Item) {
 	switch options.OutputFormat {
 	case "plain": plainOutput(fields, items)
-	case "simple": tableOutput(fields, headerFunction, items, "simple")
-	default: tableOutput(fields, headerFunction, items, "table")
+	case "simple": tableOutput(fields, headerFunction, items, tableStyleSimple, false)
+	case "color": tableOutput(fields, headerFunction, items, tableStyleColor, true)
+	default: tableOutput(fields, headerFunction, items, tableStyleNormal, true)
 	}
 }
 
@@ -46,23 +47,33 @@ func plainOutput(fields []string, items []Item) {
 	}
 }
 
-func tableOutput(fields []string, headerFunction HeaderFunction, items []Item, tableType string) {
+var tableStyleNormal = &table.StyleDefault
+var tableStyleColor = &table.StyleColoredBlackOnBlueWhite
+var tableStyleSimple = &table.StyleDefault
+
+func init() {
+	tableStyleNormal.Format.Header = text.FormatDefault
+
+	tableStyleColor.Format.Header = text.FormatDefault
+	
+	tableStyleSimple.Options.DrawBorder = false
+	tableStyleSimple.Options.SeparateColumns = false
+	tableStyleSimple.Options.SeparateFooter = false
+	tableStyleSimple.Options.SeparateHeader = false
+	tableStyleSimple.Options.SeparateRows = false
+}
+
+func tableOutput(fields []string, headerFunction HeaderFunction, items []Item, style *table.Style, showHeader bool) {
 	t := table.NewWriter()
-	t.Style().Format.Header = text.FormatDefault
+	t.SetStyle(*style)
 	t.SetOutputMirror(os.Stdout)
 
-	if tableType == "table" {
+	if showHeader {
 		headerFields := make([]interface{}, len(fields))
 		for i, field := range fields {
 			headerFields[i] = headerFunction(field)
 		}
 		t.AppendHeader(headerFields)
-	} else {
-		t.Style().Options.DrawBorder = false
-		t.Style().Options.SeparateColumns = false
-		t.Style().Options.SeparateFooter = false
-		t.Style().Options.SeparateHeader = false
-		t.Style().Options.SeparateRows = false
 	}
 
 	for _, item := range items {
