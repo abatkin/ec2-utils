@@ -163,6 +163,22 @@ func ExtractFromExpression(expression string, item interface{}) (string, error) 
 		return fmt.Sprintf("%s", sg), nil
 	}
 
+	if s, ok := stringifyBuiltinType(reflectedValue); ok {
+		return s, nil
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+	encoder.SetEscapeHTML(false)
+	if encoder.Encode(rawValue) == nil {
+		buf.Truncate(buf.Len() - 1) // Discard the stupid newline
+		return buf.String(), nil
+	}
+
+	return "", nil
+}
+
+func stringifyBuiltinType(reflectedValue reflect.Value) (string, bool) {
 	switch reflectedValue.Kind() {
 	case reflect.Bool:
 		fallthrough
@@ -197,18 +213,9 @@ func ExtractFromExpression(expression string, item interface{}) (string, error) 
 	case reflect.Complex128:
 		fallthrough
 	case reflect.String: // still possible because of type aliases
-		return fmt.Sprintf("%v", reflectedValue), nil
+		return fmt.Sprintf("%v", reflectedValue), true
 	}
-
-	buf := &bytes.Buffer{}
-	encoder := json.NewEncoder(buf)
-	encoder.SetEscapeHTML(false)
-	if encoder.Encode(rawValue) == nil {
-		buf.Truncate(buf.Len() - 1) // Discard the stupid newline
-		return buf.String(), nil
-	}
-
-	return "", nil
+	return "", false
 }
 
 func evaluateExpression(expression string, item interface{}) (interface{}, error) {
