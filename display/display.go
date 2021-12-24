@@ -222,7 +222,8 @@ func evaluateExpression(expression string, item interface{}) (interface{}, error
 
 	output, err := expr.Run(program, item)
 	if err != nil {
-		return fmt.Sprintf("error: %v", err), nil
+		// Ignore errors, probably an index out of bounds or something
+		return "", nil
 	}
 	return output, nil
 }
