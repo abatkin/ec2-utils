@@ -2,7 +2,7 @@ package commands
 
 import (
 	utilAws "ec2-utils/aws"
-	utilDisplay "ec2-utils/display"
+	"ec2-utils/display"
 	"errors"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -29,7 +29,7 @@ func (c *ListEc2InstancesCommand) description() string {
 	return "List EC2 Instances"
 }
 
-func (c *ListEc2InstancesCommand) runCommand(awsOptions *utilAws.Options) ([]utilDisplay.Item, error) {
+func (c *ListEc2InstancesCommand) runCommand(awsOptions *utilAws.Options) ([]display.Item, error) {
 	client := awsOptions.BuildAwsClient()
 	requestContext := awsOptions.BuildRequestContext()
 	var filter *ec2.DescribeInstancesInput
@@ -39,7 +39,7 @@ func (c *ListEc2InstancesCommand) runCommand(awsOptions *utilAws.Options) ([]uti
 	}
 
 	instancesPaginator := ec2.NewDescribeInstancesPaginator(client, filter)
-	items := make([]utilDisplay.Item, 0)
+	items := make([]display.Item, 0)
 	for instancesPaginator.HasMorePages() {
 		page, err := instancesPaginator.NextPage(requestContext)
 		if err != nil {
@@ -54,20 +54,16 @@ func (c *ListEc2InstancesCommand) runCommand(awsOptions *utilAws.Options) ([]uti
 	return items, nil
 }
 
-func (c *ListEc2InstancesCommand) defaultFieldNames() []string {
-	return []string{"id", "tags.Name", "state"}
+func (c *ListEc2InstancesCommand) defaultFields() []display.FieldInfo {
+	return []display.FieldInfo{
+		{Name: "id", Expression: "InstanceId"},
+		{Name: "Name", Expression: "Tags:Name"},
+		{Name: "State", Expression: "State.Name"},
+	}
 }
 
-func (c *ListEc2InstancesCommand) headerName(fieldName string) string {
-	if strings.Index(fieldName, "Tags.") == 0 {
-		return fieldName[5:]
-	} else if fieldName == "id" {
-		return "InstanceId"
-	} else if len(fieldName) >= 2 {
-		return strings.ToUpper(fieldName[0:1]) + fieldName[1:]
-	} else {
-		return fieldName
-	}
+func (c *ListEc2InstancesCommand) headerName(fieldName display.FieldInfo) string {
+	return fieldName.Name
 }
 
 func (c *ListEc2InstancesCommand) buildFilter() (*ec2.DescribeInstancesInput, error) {
@@ -79,7 +75,7 @@ func (c *ListEc2InstancesCommand) buildFilter() (*ec2.DescribeInstancesInput, er
 		}
 
 		request.InstanceIds = c.instanceIds
-	}  else if len(c.filterOptions) > 0 {
+	} else if len(c.filterOptions) > 0 {
 		filters := make([]types.Filter, len(c.filterOptions))
 		i := 0
 		for key, value := range c.filterOptions {
@@ -106,7 +102,7 @@ type Ec2Item struct {
 	tags map[string]string
 }
 
-func newEc2Item(instance types.Instance) utilDisplay.Item {
+func newEc2Item(instance types.Instance) display.Item {
 	var tags = map[string]string{}
 	for _, tag := range instance.Tags {
 		tags[aws.ToString(tag.Key)] = aws.ToString(tag.Value)
@@ -118,15 +114,11 @@ func newEc2Item(instance types.Instance) utilDisplay.Item {
 	}
 }
 
-func (e *Ec2Item) GetValue(name string) string {
-	switch {
-	case strings.Index(name, "tags.") == 0:
-		return e.tags[name[5:]]
-	case name == "id":
-		return aws.ToString(e.InstanceId)
-	case name == "state":
-		return string(e.State.Name)
-	default:
-		return ""
+func (e *Ec2Item) GetValue(fieldInfo display.FieldInfo) string {
+	expression := fieldInfo.Expression
+	if strings.Index(expression, "Tags:") == 0 {
+		return e.tags[expression[5:]]
 	}
+
+	return display.ExtractFromExpression(expression, e)
 }

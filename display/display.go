@@ -1,12 +1,21 @@
 package display
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/lysu/go-el"
 	"github.com/spf13/cobra"
 	"os"
+	"strings"
 )
 import "github.com/jedib0t/go-pretty/v6/table"
+
+type FieldInfo struct {
+	Name       string
+	Expression string
+}
 
 type Options struct {
 	OutputFormat string
@@ -14,10 +23,10 @@ type Options struct {
 }
 
 type Item interface {
-	GetValue(name string) string
+	GetValue(name FieldInfo) string
 }
 
-type HeaderFunction func(field string) string
+type HeaderFunction func(field FieldInfo) string
 
 func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 	displayOptions := &Options{}
@@ -28,16 +37,43 @@ func BuildDisplayOptions(rootCmd *cobra.Command) *Options {
 	return displayOptions
 }
 
-func (options *Options) Render(fields []string, headerFunction HeaderFunction, items []Item) {
-	switch options.OutputFormat {
-	case "plain": plainOutput(fields, items)
-	case "simple": tableOutput(fields, headerFunction, items, tableStyleSimple, false)
-	case "color": tableOutput(fields, headerFunction, items, tableStyleColor, true)
-	default: tableOutput(fields, headerFunction, items, tableStyleNormal, true)
+func ParseFields(rawFields []string) []FieldInfo {
+	infos := make([]FieldInfo, len(rawFields))
+	for idx, rawField := range rawFields {
+		infos[idx] = parseField(rawField)
+	}
+	return infos
+}
+
+func parseField(field string) FieldInfo {
+	parts := strings.SplitN(field, "=", 2)
+	if len(parts) == 1 {
+		return FieldInfo{
+			Name:       parts[0],
+			Expression: parts[0],
+		}
+	} else {
+		return FieldInfo{
+			Name:       parts[0],
+			Expression: parts[1],
+		}
 	}
 }
 
-func plainOutput(fields []string, items []Item) {
+func Render(fields []FieldInfo, outputFormat string, headerFunction HeaderFunction, items []Item) {
+	switch outputFormat {
+	case "plain":
+		plainOutput(fields, items)
+	case "simple":
+		tableOutput(fields, headerFunction, items, tableStyleSimple, false)
+	case "color":
+		tableOutput(fields, headerFunction, items, tableStyleColor, true)
+	default:
+		tableOutput(fields, headerFunction, items, tableStyleNormal, true)
+	}
+}
+
+func plainOutput(fields []FieldInfo, items []Item) {
 	for _, item := range items {
 		for _, field := range fields {
 			value := item.GetValue(field)
@@ -55,7 +91,7 @@ func init() {
 	tableStyleNormal.Format.Header = text.FormatDefault
 
 	tableStyleColor.Format.Header = text.FormatDefault
-	
+
 	tableStyleSimple.Options.DrawBorder = false
 	tableStyleSimple.Options.SeparateColumns = false
 	tableStyleSimple.Options.SeparateFooter = false
@@ -63,7 +99,7 @@ func init() {
 	tableStyleSimple.Options.SeparateRows = false
 }
 
-func tableOutput(fields []string, headerFunction HeaderFunction, items []Item, style *table.Style, showHeader bool) {
+func tableOutput(fields []FieldInfo, headerFunction HeaderFunction, items []Item, style *table.Style, showHeader bool) {
 	t := table.NewWriter()
 	t.SetStyle(*style)
 	t.SetOutputMirror(os.Stdout)
@@ -85,4 +121,43 @@ func tableOutput(fields []string, headerFunction HeaderFunction, items []Item, s
 	}
 
 	t.Render()
+}
+
+func ExtractFromExpression(expression string, item interface{}) string {
+	exp := el.Expression(expression)
+	result, err := exp.Execute(item)
+	if err != nil {
+		return err.Error()
+	}
+
+	if result.IsNil() {
+		return ""
+	}
+
+	switch {
+	case result.IsNil():
+		return ""
+	case result.IsBool():
+		fallthrough
+	case result.IsNumber():
+		fallthrough
+	case result.IsString():
+		return result.String()
+	}
+
+	rawValue := result.Interface()
+
+	if stringer, ok := rawValue.(fmt.Stringer); ok {
+		return stringer.String()
+	}
+
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+	encoder.SetEscapeHTML(false)
+	if encoder.Encode(rawValue) == nil {
+		buf.Truncate(buf.Len() - 1) // Discard the stupid newline
+		return buf.String()
+	}
+
+	return ""
 }

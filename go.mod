@@ -7,6 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.11.1
 	github.com/aws/aws-sdk-go-v2/service/ec2 v1.26.0
 	github.com/jedib0t/go-pretty/v6 v6.2.4
+	github.com/lysu/go-el v0.0.0-20151116030333-4cb8b08d4e07
 	github.com/spf13/cobra v1.3.0
 )
 

@@ -12,26 +12,26 @@ type Ec2Command interface {
 	usage() string
 	description() string
 	runCommand(awsOptions *utilAws.Options) ([]display.Item, error)
-	defaultFieldNames() []string
-	headerName(field string) string
+	defaultFields() []display.FieldInfo
+	headerName(field display.FieldInfo) string
 }
 
 func setupCommand(command Ec2Command, awsOptions *utilAws.Options, displayOptions *display.Options) *cobra.Command {
 	cobraCommand := &cobra.Command{
-		Use: command.usage(),
-		Short: command.description(),
+		Use:                   command.usage(),
+		Short:                 command.description(),
 		DisableFlagsInUseLine: true,
 		Run: func(cmd *cobra.Command, args []string) {
 			if result, err := command.runCommand(awsOptions); err != nil {
 				log.Fatalf("error running command: %v", err)
 			} else {
-				var fields []string
+				var fields []display.FieldInfo
 				if len(displayOptions.Fields) > 0 {
-					fields = displayOptions.Fields
+					fields = display.ParseFields(displayOptions.Fields)
 				} else {
-					fields = command.defaultFieldNames()
+					fields = command.defaultFields()
 				}
-				displayOptions.Render(fields, command.headerName, result)
+				display.Render(fields, displayOptions.OutputFormat, command.headerName, result)
 			}
 		},
 	}
