@@ -4,10 +4,12 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/antonmedv/expr"
+	"github.com/antonmedv/expr/conf"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/lysu/go-el"
 	"github.com/spf13/cobra"
 	"os"
+	"reflect"
 	"strings"
 )
 import "github.com/jedib0t/go-pretty/v6/table"
@@ -23,7 +25,7 @@ type Options struct {
 }
 
 type Item interface {
-	GetValue(name FieldInfo) string
+	GetValue(name FieldInfo) (string, error)
 }
 
 type HeaderFunction func(field FieldInfo) string
@@ -61,23 +63,32 @@ func parseField(field string) FieldInfo {
 }
 
 func Render(fields []FieldInfo, outputFormat string, headerFunction HeaderFunction, items []Item) {
+	var err error
 	switch outputFormat {
 	case "plain":
 		plainOutput(fields, items)
 	case "simple":
-		tableOutput(fields, headerFunction, items, tableStyleSimple, false)
+		err = tableOutput(fields, headerFunction, items, tableStyleSimple, false)
 	case "color":
-		tableOutput(fields, headerFunction, items, tableStyleColor, true)
+		err = tableOutput(fields, headerFunction, items, tableStyleColor, true)
 	default:
-		tableOutput(fields, headerFunction, items, tableStyleNormal, true)
+		err = tableOutput(fields, headerFunction, items, tableStyleNormal, true)
+	}
+
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
 	}
 }
 
 func plainOutput(fields []FieldInfo, items []Item) {
 	for _, item := range items {
 		for _, field := range fields {
-			value := item.GetValue(field)
-			fmt.Printf("%s ", value)
+			value, err := item.GetValue(field)
+			if err != nil {
+				fmt.Printf("<error: %v>", err)
+			} else {
+				fmt.Printf("%s ", value)
+			}
 		}
 		fmt.Println()
 	}
@@ -99,7 +110,7 @@ func init() {
 	tableStyleSimple.Options.SeparateRows = false
 }
 
-func tableOutput(fields []FieldInfo, headerFunction HeaderFunction, items []Item, style *table.Style, showHeader bool) {
+func tableOutput(fields []FieldInfo, headerFunction HeaderFunction, items []Item, style *table.Style, showHeader bool) error {
 	t := table.NewWriter()
 	t.SetStyle(*style)
 	t.SetOutputMirror(os.Stdout)
@@ -115,40 +126,78 @@ func tableOutput(fields []FieldInfo, headerFunction HeaderFunction, items []Item
 	for _, item := range items {
 		values := make([]interface{}, len(fields))
 		for i, field := range fields {
-			values[i] = item.GetValue(field)
+			if value, err := item.GetValue(field); err != nil {
+				return err
+			} else {
+				values[i] = value
+			}
 		}
 		t.AppendRow(values)
 	}
 
 	t.Render()
+
+	return nil
 }
 
-func ExtractFromExpression(expression string, item interface{}) string {
-	exp := el.Expression(expression)
-	result, err := exp.Execute(item)
+var stringerType = reflect.TypeOf((*fmt.Stringer)(nil)).Elem()
+
+func ExtractFromExpression(expression string, item interface{}) (string, error) {
+	rawValue, err := evaluateExpression(expression, item)
 	if err != nil {
-		return err.Error()
+		return "", err
 	}
 
-	if result.IsNil() {
-		return ""
+	reflectedValue := reflect.ValueOf(rawValue)
+	if reflectedValue.Kind() == reflect.Ptr {
+		if reflectedValue.IsNil() {
+			return "", nil
+		}
+		reflectedValue = reflectedValue.Elem()
+		rawValue = reflectedValue.Interface()
 	}
 
-	switch {
-	case result.IsNil():
-		return ""
-	case result.IsBool():
+	if s, ok := rawValue.(string); ok {
+		return fmt.Sprintf("%s", s), nil
+	} else if sg, ok := rawValue.(fmt.Stringer); ok {
+		return fmt.Sprintf("%s", sg), nil
+	}
+
+	switch reflectedValue.Kind() {
+	case reflect.Bool:
 		fallthrough
-	case result.IsNumber():
+	case reflect.Int:
 		fallthrough
-	case result.IsString():
-		return result.String()
-	}
-
-	rawValue := result.Interface()
-
-	if stringer, ok := rawValue.(fmt.Stringer); ok {
-		return stringer.String()
+	case reflect.Int8:
+		fallthrough
+	case reflect.Int16:
+		fallthrough
+	case reflect.Int32:
+		fallthrough
+	case reflect.Int64:
+		fallthrough
+	case reflect.Uint:
+		fallthrough
+	case reflect.Uint8:
+		fallthrough
+	case reflect.Uint16:
+		fallthrough
+	case reflect.Uint32:
+		fallthrough
+	case reflect.Uint64:
+		fallthrough
+	case reflect.Uintptr:
+		fallthrough
+	case reflect.Float32:
+		fallthrough
+	case reflect.Float64:
+		fallthrough
+	case reflect.Complex64:
+		fallthrough
+	case reflect.Complex128:
+		fallthrough
+	case reflect.String: // still possible because of type aliases
+		return fmt.Sprintf("%v", reflectedValue), nil
 	}
 
 	buf := &bytes.Buffer{}
@@ -156,8 +205,24 @@ func ExtractFromExpression(expression string, item interface{}) string {
 	encoder.SetEscapeHTML(false)
 	if encoder.Encode(rawValue) == nil {
 		buf.Truncate(buf.Len() - 1) // Discard the stupid newline
-		return buf.String()
+		return buf.String(), nil
 	}
 
-	return ""
+	return "", nil
+}
+
+func evaluateExpression(expression string, item interface{}) (interface{}, error) {
+	program, err := expr.Compile(expression, func(c *conf.Config) {
+		c.Strict = false
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	output, err := expr.Run(program, item)
+	if err != nil {
+		return fmt.Sprintf("error: %v", err), nil
+	}
+	return output, nil
 }

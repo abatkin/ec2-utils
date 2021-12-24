@@ -114,10 +114,10 @@ func newEc2Item(instance types.Instance) display.Item {
 	}
 }
 
-func (e *Ec2Item) GetValue(fieldInfo display.FieldInfo) string {
+func (e *Ec2Item) GetValue(fieldInfo display.FieldInfo) (string, error) {
 	expression := fieldInfo.Expression
 	if strings.Index(expression, "Tags:") == 0 {
-		return e.tags[expression[5:]]
+		return e.tags[expression[5:]], nil
 	}
 
 	return display.ExtractFromExpression(expression, e)
